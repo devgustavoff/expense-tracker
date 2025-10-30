@@ -2,19 +2,28 @@ import argparse
 import sqlite3
 from datetime import datetime
 import pandas as pd
+import calendar
 
+# Classe que representa as expenses
 class Expense:
     def __init__(self, description, amount):
         self.description = description
         self.amount = amount
         self.date = datetime.now()
 
+# Constante que armazena uma string que representa o nome do banco de dados
 EXPENSE_FILE = 'expense_storage.db'
 
+# Aqui é feito uma conecxão com o banco de dados
+# É a instrução with é usada para auxiliar a conecxão com o bd abrido e fechando a conecxão
 with sqlite3.connect(EXPENSE_FILE) as connection:
     
+    # essa variavel cursor é resposavel por fazer as ações de manipulação de dados detro do DB
+    # ela um ponteiro para o DB e executamos ações no DB atraves desse ponteiro
     cursor = connection.cursor()
 
+    # Aqui é criado uma query para criar uma tabela
+    # Caso a table não exista ela é criada 
     created_table_query = """
     CREATE TABLE IF NOT EXISTS Expenses (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -23,47 +32,91 @@ with sqlite3.connect(EXPENSE_FILE) as connection:
         date TEXT
     );
     """
+    # Aqui estamos executando o metodo execute() para executar a query dentro do DB o arquivo
     cursor.execute(created_table_query)
 
+    # Essa instrução sala as alterações feitas.
     connection.commit()
 
+# Função que insere uma expense no database
+# Ela recebe um objeto expense
 def insertion_expense(expense):
+    """Insert a expense in the database
+
+    :param expense: float - value of expense
+    :return: None 
+    """
     
+    # Instrução usada para fazer a conecxão com o DB
     with sqlite3.connect(EXPENSE_FILE) as connection:
 
+        # Ponteito para o DB
         cursor = connection.cursor()
+
+        # Query para inserir dados no DB
         insert_query = """
         INSERT INTO Expenses(description, amount, date)
         VALUES (?, ?, ?);
         """
-    
+        # Aqui é obtido a data que a expense foi inserida na tabela
+        # E também estamos formatando ela para o formato ISO
         current_datatime = expense.date.isoformat()
 
+        # Aqui temos uma tupla com os dados da expenses
         expense_data = (expense.description, expense.amount, current_datatime)
 
+        # Executamos a query de inserção junto com os dados da expense que sera iserida no DB
         cursor.execute(insert_query, expense_data)
 
+        # Fazemos o comite para salvar as alterações no DB
         connection.commit()
 
-# Me explique essa função
+
+# Essa função mostra todas as expenses no DB
 def list_expenses():
+    """Display all expenses in formatted table
+
+    :return: None
+    """
     
+    # Instrução que faz a conecxão com o DB
     with sqlite3.connect(EXPENSE_FILE) as connection:
 
+        # Query que seleciona e motra as colunas expecificadas de Expenses
         select_query = "SELECT id, date, description, amount FROM Expenses;"
 
+        # Aqui usamos a biblioteca pandas para criar um dataframe
         df = pd.read_sql_query(select_query, connection)
 
+        # Instrução que renomeia o nome das colunas
         df = df.rename(columns={
             'id':'ID',
             'date':'Date',
             'description':'Description',
             'amount':'Amount'
         })
-        # Formatar exibição da data
-        print(df.to_string(index=False, formatters={'Amount': '${:.2f}'.format}))
+
+        # Converte a data para o formato YYYY/MM/DD
+        df['Date'] = pd.to_datetime(df['Date']).dt.date
+
+        # Esse instrunção transforma valores Null/NaN no formato 0.00
+        df['Amount'] = df['Amount'].fillna(0.0)
+
+        # Essa instrução aplica a função lambda em todos os valores da coluna amount
+        # A expressão que a lambda recebe de conversão, essa expressão converte todo valor x em um valor com 2 casas decimais
+        df['Amount'] = df['Amount'].apply(lambda x: f"${x:.2f}")
+
+        # Imprime o dataframe no formato string, o index=Fales é para desativar os indices das linhas
+        # não quero mostrar os idices das linhas
+        print(df.to_string(index=False))
+
 
 def update_expense(expense_id, amount):
+    """Update an expense existente
+
+    :param expense_id: int - id of expense.
+    :param amount: float -  value of expense.
+    """
 
     with sqlite3.connect(EXPENSE_FILE) as connection:
 
@@ -78,10 +131,14 @@ def update_expense(expense_id, amount):
 
         connection.commit()
 
-        print(f"Update amount for {expense_id} to {amount}")
+        print(f"Expense updated successfully")
 
 def delete_expense(expense_id):
-    
+    """Delete an specific expense
+
+    :param expense_id: int - ID of expense.
+    :return: None
+    """
     with sqlite3.connect(EXPENSE_FILE) as connection:
 
         cursor = connection.cursor()
@@ -97,7 +154,11 @@ def delete_expense(expense_id):
         print("Expense deleted successfully")
 
 def summary_total():
-    
+    """Display summary total of expenses
+
+    :return: None
+    """
+
     with sqlite3.connect(EXPENSE_FILE) as connection:
 
         cursor = connection.cursor()
@@ -114,6 +175,10 @@ def summary_total():
         print(f"Total expenses: ${total_expenses[0]:.2f}")
 
 def summary_month(month):
+    """Display summary of a specific month
+
+    :return: None
+    """
     
     with sqlite3.connect(EXPENSE_FILE) as connection:
 
@@ -129,40 +194,55 @@ def summary_month(month):
 
         month_expenses = cursor.fetchone()
 
-        print(month_expenses)
+        name_of_month = calendar.month_name[int(month)]
+
+        print(f"Total expenses for {name_of_month} ${month_expenses[0]:.2f}")
 
 parser = argparse.ArgumentParser(description='Manage expenses')
 subparsers = parser.add_subparsers(dest='command', required=True)
 
-# Argumentos para adicionar uma despesa
+# Comando para adicionar uma despesa
 parser_add = subparsers.add_parser('add', help='Add a new expense')
+
+# Argumento opcional para adcionar uma descrição a despesa
 parser_add.add_argument('--description', action='store', help='Description of expense')
+
+# Argumento opcional para adcionar o valor da despesa
 parser_add.add_argument('--amount', type=float, action='store', help='Amount of expense')
 
-# Argumento para listar as despesa
+# Comando para listar todas as despesas
 parser_list = subparsers.add_parser('list', help='List all expenses in lista of expenses')
 
-# Argumento para atualizar despesa
+# Comando para atualizar uma despesa especifica
 parser_update = subparsers.add_parser('update', help='Update the amount of expense')
-parser_update.add_argument('--expense', type=int, action='store', help='ID of expense')
+
+# Argumento opcional para especificar o ID da despesa
+parser_update.add_argument('--id', type=int, action='store', help='ID of expense')
+
+# Argumento opcional para especificar o novo valor da despesa
 parser_update.add_argument('--amount', type=float, action='store', help='New amount')
 
-# Agumento para deletar despesa
+# Comando para deletar uma despesa especifica
 parser_delete = subparsers.add_parser('delete', help="Delete a expense")
-parser_delete.add_argument('--expense', type=int, action='store', help='ID of expense')
 
-# Argumento para mostrar o total das despesas
+# Argumento opcional que especifica o ID da despesa a ser deletada
+parser_delete.add_argument('--id', type=int, action='store', help='ID of expense')
+
+# Coamndo para mostrar a soma total das despesas
 parser_summary = subparsers.add_parser('summary', help="Show the total of expenses")
+
+# Argumento opcional caso queria saber o total das despesas de um mês especifico
 parser_summary.add_argument('--month', type=str, action='store', help="Show the total of expense for a specific month")
 
+# Variavel que carrega todos os comandos e argumentos de parser
 args = parser.parse_args()
 
 if args.command == 'add':
     insertion_expense(Expense(description=args.description, amount=args.amount))
 elif args.command == 'update':
-    update_expense(args.expense, args.amount)
+    update_expense(args.id, args.amount)
 elif args.command == 'delete':
-    delete_expense(args.expense)
+    delete_expense(args.id)
 elif args.command == 'list':
     list_expenses()
 elif args.command == 'summary':
