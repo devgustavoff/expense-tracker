@@ -198,7 +198,10 @@ def summary_month(month):
 
         print(f"Total expenses for {name_of_month} ${month_expenses[0]:.2f}")
 
+# Instanciamos um objeto analisador sintatico 
 parser = argparse.ArgumentParser(description='Manage expenses')
+
+# É criado um subanalisador sintatico
 subparsers = parser.add_subparsers(dest='command', required=True)
 
 # Comando para adicionar uma despesa
@@ -234,7 +237,8 @@ parser_summary = subparsers.add_parser('summary', help="Show the total of expens
 # Argumento opcional caso queria saber o total das despesas de um mês especifico
 parser_summary.add_argument('--month', type=str, action='store', help="Show the total of expense for a specific month")
 
-# Variavel que carrega todos os comandos e argumentos de parser
+# Nessa linha esta sendo executado o nalaisador sintatico
+# Os dados são inseriodos em args
 args = parser.parse_args()
 
 if args.command == 'add':
