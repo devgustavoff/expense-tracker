@@ -2,8 +2,7 @@
 
 Ferramenta de linha de comando para gerenciamento financeiro pessoal, construída em Python com persistência de dados em SQLite.
 
-Project URL: https://github.com/devgustavoff/expense-tracker
-
+Project URL: https://roadmap.sh/projects/expense-tracker
 ## 🚀 Tecnologias
 
 - **Python 3.x**
