@@ -46,6 +46,10 @@ def insertion_expense(expense):
     :param expense: float - value of expense
     :return: None 
     """
+    # Caso o valor da despesa seja negativo
+    if expense.amount < 0:
+        print("Invalid value")
+        return
     
     # Instrução usada para fazer a conecxão com o DB
     with sqlite3.connect(EXPENSE_FILE) as connection:
@@ -70,6 +74,8 @@ def insertion_expense(expense):
 
         # Fazemos o comite para salvar as alterações no DB
         connection.commit()
+
+        print(f"Expense added successfully")
 
 
 # Essa função mostra todas as expenses no DB
@@ -131,7 +137,7 @@ def update_expense(expense_id, amount):
 
         connection.commit()
 
-        print(f"Expense updated successfully")
+        print(f"Expense updated successfully (ID: {expense_id})")
 
 def delete_expense(expense_id):
     """Delete an specific expense
@@ -139,19 +145,35 @@ def delete_expense(expense_id):
     :param expense_id: int - ID of expense.
     :return: None
     """
+
     with sqlite3.connect(EXPENSE_FILE) as connection:
 
         cursor = connection.cursor()
 
-        delete_query = """
-        DELETE FROM Expenses
-        WHERE id = ?;
+        select_query = """
+        SELECT 1
+        FROM Expenses
+        WHERE id = ?
         """
-        cursor.execute(delete_query, (expense_id,))
 
-        connection.commit()
+        cursor.execute(select_query, (expense_id,))
 
-        print("Expense deleted successfully")
+        aux = cursor.fetchone()
+
+        if aux != None:
+
+            delete_query = """
+            DELETE FROM Expenses
+            WHERE id = ?;
+            """
+            cursor.execute(delete_query, (expense_id,))
+
+            connection.commit()
+
+            print(f"Expense deleted successfully (ID: {expense_id})")
+        else:
+            print("Expense not found")
+
 
 def summary_total():
     """Display summary total of expenses
@@ -196,7 +218,10 @@ def summary_month(month):
 
         name_of_month = calendar.month_name[int(month)]
 
-        print(f"Total expenses for {name_of_month} ${month_expenses[0]:.2f}")
+        try:
+            print(f"Total expenses for {name_of_month} ${month_expenses[0]:.2f}")
+        except TypeError:
+            print(f"Date not found")
 
 # Instanciamos um objeto analisador sintatico 
 parser = argparse.ArgumentParser(description='Manage expenses')
